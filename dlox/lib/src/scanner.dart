@@ -1,6 +1,6 @@
-
 import 'package:dlox/src/token.dart';
 import 'package:dlox/src/token_type.dart';
+import 'package:dlox/src/dlox_base.dart';
 
 /// Scans through the **source** producing a list of tokens.
 class Scanner {
@@ -43,72 +43,185 @@ class Scanner {
   Scanner(this.source);
 
   List<Token> scanTokens() {
-    return [];
+    while (!isAtEnd()) {
+      // We are at the beginning of the current lexeme.
+      start = current;
+      scanToken();
+    }
+
+    tokens.add(Token(TokenType.EOF, '', null, line));
+    return tokens;
   }
 
-  	private void string() {
-		while (peek() != '"' && !isAtEnd()) {
-			if (peek() == '\n')
-				line++;
-			advance();
-		}
+  void scanToken() {
+    var c = advance();
+    switch (c) {
+      case '(':
+        addToken(TokenType.LEFT_PAREN);
+        break;
+      case ')':
+        addToken(TokenType.RIGHT_PAREN);
+        break;
+      case '{':
+        addToken(TokenType.LEFT_BRACE);
+        break;
+      case '}':
+        addToken(TokenType.RIGHT_BRACE);
+        break;
+      case ',':
+        addToken(TokenType.COMMA);
+        break;
+      case '.':
+        addToken(TokenType.DOT);
+        break;
+      case '-':
+        addToken(TokenType.MINUS);
+        break;
+      case '+':
+        addToken(TokenType.PLUS);
+        break;
+      case ';':
+        addToken(TokenType.SEMICOLON);
+        break;
+      case '*':
+        addToken(TokenType.STAR);
+        break;
+      case '!':
+        addToken(match('=') ? TokenType.BANG_EQUAL : TokenType.BANG);
+        break;
+      case '=':
+        addToken(match('=') ? TokenType.EQUAL_EQUAL : TokenType.EQUAL);
+        break;
+      case '<':
+        addToken(match('=') ? TokenType.LESS_EQUAL : TokenType.LESS);
+        break;
+      case '>':
+        addToken(match('=') ? TokenType.GREATER_EQUAL : TokenType.GREATER);
+        break;
+      case '/':
+        if (match('/')) {
+          // A comment goes until the end of the line.
+          while (peek() != '\n' && !isAtEnd()) {
+            advance();
+          }
+        } else {
+          addToken(TokenType.SLASH);
+        }
+        break;
+      case ' ':
+      case '\r':
+      case '\t':
+        // Ignore whitespace.
+        break;
+      case '\n':
+        line++;
+        break;
+      case '"':
+        string();
+        break;
+      default:
+        if (isDigit(c)) {
+          number();
+        } else if (isAlpha(c)) {
+          identifier();
+        } else {
+          Lox.error(line, 'Unexpected character.');
+        }
+        break;
+    }
+  }
 
-		if (isAtEnd()) {
-			Lox.error(line, 'Unterminated string.');
-			return;
-		}
+  void identifier() {
+    while (isAlphaNumeric(peek())) {
+      advance();
+    }
 
-		advance(); // The closing ".
+    var text = source.substring(start, current);
+    var type = keywords[text];
+    type ??= TokenType.IDENTIFIER;
+    addToken(type);
+  }
 
-		// Trim the surrounding quotes.
-		var value = source.substring(start + 1, current - 1);
-		addToken(TokenType.STRING, value);
-	}
+  void number() {
+    while (isDigit(peek())) {
+      advance();
+    }
 
-  bool match(int expected) {
+    // Look for a fractional part.
+    if (peek() == '.' && isDigit(peekNext())) {
+      // Consume the "."
+      advance();
+
+      while (isDigit(peek())) {
+        advance();
+      }
+    }
+    addToken(TokenType.NUMBER, double.parse(source.substring(start, current)));
+  }
+
+  void string() {
+    while (peek() != '"' && !isAtEnd()) {
+      if (peek() == '\n') line++;
+      advance();
+    }
+
+    if (isAtEnd()) {
+      Lox.error(line, 'Unterminated string.');
+      return;
+    }
+
+    advance(); // The closing ".
+
+    // Trim the surrounding quotes.
+    var value = source.substring(start + 1, current - 1);
+    addToken(TokenType.STRING, value);
+  }
+
+  bool match(String expected) {
     if (isAtEnd()) return false;
-    if (source.codeUnitAt(current) != expected) return false;
+    if (String.fromCharCode(source.codeUnitAt(current)) != expected) {
+      return false;
+    }
 
     current++;
     return true;
   }
 
-  int peek() {
-    if (isAtEnd()) return '\0'.codeUnitAt(0);
-    return source.codeUnitAt(current);
+  String peek() {
+    if (isAtEnd()) return '\x00';
+    return String.fromCharCode(source.codeUnitAt(current));
   }
 
-  int peekNext() {
+  String peekNext() {
     if (current + 1 >= source.length) {
-      return '\0'.codeUnitAt(0);
+      return '\x00';
     }
-    return source.codeUnitAt(current + 1);
+    return String.fromCharCode(source.codeUnitAt(current + 1));
   }
 
-  bool isAlpha(int c) {
-    return (c >= 'a'.codeUnitAt(0) && c <= 'z'.codeUnitAt(0)) ||
-        (c >= 'A'.codeUnitAt(0) && c <= 'Z'.codeUnitAt(0)) ||
-        c == '_'.codeUnitAt(0);
+  bool isAlpha(String c) {
+    var isDownCaseLetter = (c.codeUnitAt(0) >= 'a'.codeUnitAt(0) &&
+        c.codeUnitAt(0) <= 'z'.codeUnitAt(0));
+    var isUpperCaseLetter = (c.codeUnitAt(0) >= 'A'.codeUnitAt(0) &&
+        c.codeUnitAt(0) <= 'Z'.codeUnitAt(0));
+    var isUnderscore = c.codeUnitAt(0) == '_'.codeUnitAt(0);
+    return isDownCaseLetter || isUpperCaseLetter || isUnderscore;
   }
 
-  bool isAlphaNumeric(int c) {
+  bool isAlphaNumeric(String c) {
     return isAlpha(c) || isDigit(c);
   }
 
-  bool isDigit(int c) {
-    return c >= 0 && c <= 9;
+  bool isDigit(String c) {
+    return c.codeUnitAt(0) >= 48 && c.codeUnitAt(0) <= 57;
   }
 
   /// Advances **current** to the next character in **source** and returns it.
-  int advance() {
-    return source.codeUnitAt(current++);
+  String advance() {
+    return String.fromCharCode(source.codeUnitAt(current++));
   }
 
-  void addSingleToken(TokenType type) {
-    addToken(type, null);
-  }
-
-  void addToken(TokenType type, Object? literal) {
+  void addToken(TokenType type, [Object? literal]) {
     var text = source.substring(start, current);
     tokens.add(Token(type, text, literal, line));
   }

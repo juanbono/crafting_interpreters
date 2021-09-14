@@ -16,20 +16,17 @@ class Lox {
   }
 
   static void runFile(String path) {
-    // byte[] bytes = Files.readAllBytes(Paths.get(path));
-    // run(new String(bytes, Charset.defaultCharset()));
+    var source = io.File(path).readAsStringSync();
+    run(source);
     if (hadError) {
       io.exit(65);
     }
   }
 
   static void runPrompt() {
-    // InputStreamReader input = new InputStreamReader(System.in);
-    // BufferedReader reader = new BufferedReader(input);
-    // leer por comsola
     for (;;) {
       print('> ');
-      String? line = reader.readLine();
+      var line = io.stdin.readLineSync();
       // When the user types Ctrl+D line is null
       if (line == null) {
         break;
