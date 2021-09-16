@@ -1,5 +1,6 @@
 plugins {
     id 'java-library'
+	id 'application'
 }
 
 repositories {
@@ -35,4 +36,17 @@ sourceSets {
             srcDirs = ['test']
         }
     }
+}
+
+apply plugin : "java" 
+ext {
+   javaMainClass = "com.craftinginterpreters.tool.GenerateAst"
+}
+
+
+task generateAst(type: JavaExec) {
+    group = "Execution"
+    description = "Run the AST generation tool."
+    classpath = sourceSets.main.runtimeClasspath
+    main = javaMainClass
 }
