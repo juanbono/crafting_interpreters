@@ -33,6 +33,7 @@ class GenerateAst {
     // The base accept() method.
     writer.writeln('  R accept(Visitor<R> visitor);');
     writer.writeln('}');
+    writer.writeln();
 
     // The AST classes.
     for (var type in types) {
@@ -61,13 +62,18 @@ class GenerateAst {
 
   static void defineType(StringBuffer writer, String baseName, String className,
       String fieldList) {
-    writer.writeln('    class $className<R> extends $baseName<R> {');
+    writer.writeln('class $className<R> extends $baseName<R> {');
     var fields = fieldList.split(', ');
+
+    // Fields.
     for (var field in fields) {
       writer.writeln('  final $field;');
     }
+
+    writer.writeln();
+
     // Constructor.
-    writer.write('     $className(');
+    writer.write('  $className(');
 
     // Store parameters in fields.
     for (var field in fields) {
@@ -75,17 +81,14 @@ class GenerateAst {
       writer.write('this.$name,');
     }
     writer.writeln(');');
-    // writer.writeln('      }');
 
     // Visitor pattern.
     writer.writeln();
-    writer.writeln('        @override');
-    writer.writeln('        R accept(Visitor<R> visitor) {');
-    writer
-        .writeln('            return visitor.visit$className$baseName(this);');
-    writer.writeln('        }');
+    writer.writeln('  @override');
+    writer.writeln('  R accept(Visitor<R> visitor) {');
+    writer.writeln('    return visitor.visit$className$baseName(this);');
+    writer.writeln('  }');
 
-    // Fields.
-    writer.writeln('    }');
+    writer.writeln('}');
   }
 }
