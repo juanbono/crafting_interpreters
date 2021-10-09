@@ -23,7 +23,7 @@ class AstPrinter implements Expr.Visitor<String> {
 	}
 
 	@Override
-	public String visitUnary(Expr.Unary expr) {
+	public String visitUnaryExpr(Expr.Unary expr) {
 		return parenthesize(expr.operator.lexeme, expr.right);
 	}
 
